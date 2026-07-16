@@ -35,6 +35,13 @@ node test-model.js
 
 Deterministic, dependency-free tests for the data model (add/remove/toggle, checked-sink sort, uncheck-all, snapshot/restore undo, persistence round-trip, meal-plan seam).
 
+**UI integration test** (`test-ui.html`) drives the real app through real DOM events — add with qty+category, check→sink, delete→undo, reset→undo restores, refresh→persists. Run it by serving the folder and opening `test-ui.html` in a browser (it loads `index.html` in an iframe and reports PASS/FAIL on the page), or headless:
+
+```bash
+# with the static server running on :8731
+chrome --headless=new --dump-dom http://localhost:8731/test-ui.html
+```
+
 ## Files
 
 | File | Purpose |

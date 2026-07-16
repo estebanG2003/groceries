@@ -1,0 +1,102 @@
+<!doctype html><meta charset="utf-8"><title>ui-test-running</title>
+<style>body{font:14px system-ui;margin:0}#f{width:390px;height:760px;border:0;display:block}</style>
+<iframe id="f"></iframe>
+<pre id="log"></pre>
+<script>
+/* Integration test: drives the REAL app UI (index.html) through real DOM
+   events at a 390px viewport, running the goal's verification sequence.
+   Result is written to <body data-result="..."> and the title for --dump-dom. */
+const results = [];
+const ok = (cond, msg) => { results.push((cond ? 'PASS' : 'FAIL') + ' : ' + msg); return cond; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const f = document.getElementById('f');
+
+function loadFrame(url) {
+  return new Promise(res => { f.onload = () => res(); f.src = url; });
+}
+const doc = () => f.contentWindow.document;
+const $ = sel => doc().querySelector(sel);
+const $$ = sel => [...doc().querySelectorAll(sel)];
+
+// type into the name box (dispatch input so the Add button enables), set qty & category, submit
+async function addItem(name, qty, catId) {
+  const nameIn = $('#nameIn');
+  nameIn.value = name;
+  nameIn.dispatchEvent(new f.contentWindow.Event('input', { bubbles: true }));
+  // qty starts at 1; press + (qty-1) times
+  const plus = doc().getElementById('qPlus');
+  for (let i = 1; i < qty; i++) plus.click();
+  doc().getElementById('catIn').value = catId;
+  doc().getElementById('addform').dispatchEvent(new f.contentWindow.Event('submit', { bubbles: true, cancelable: true }));
+  await sleep(30);
+}
+
+// names in DOM order within the list
+const itemNames = () => $$('.item .name').map(n => n.textContent.replace(/\s*×\d+$/, '').trim());
+const itemByName = name => $$('.item').find(li => li.querySelector('.name').textContent.includes(name));
+
+async function run() {
+  try {
+    const origin = location.origin;
+    // clean slate (same-origin localStorage shared with the iframe)
+    localStorage.removeItem('grocery-app-v1');
+    await loadFrame(origin + '/index.html');
+    await sleep(50);
+
+    // --- add two items with quantities and categories (same category to test sink) ---
+    await addItem('Bananas', 3, 'produce');
+    await addItem('Apples', 2, 'produce');
+    ok($$('.item').length === 2, 'two items added and rendered');
+    const b = itemByName('Bananas');
+    ok(b && b.querySelector('.qty') && b.querySelector('.qty').textContent === '×3', 'Bananas shows quantity ×3');
+    ok(itemNames().join(',') === 'Bananas,Apples', 'initial order is insertion order (Bananas, Apples)');
+
+    // --- check one off and confirm it sinks to the bottom ---
+    itemByName('Bananas').querySelector('.box').click();
+    await sleep(30);
+    ok(itemByName('Bananas').classList.contains('checked'), 'Bananas is marked checked');
+    ok(itemNames().join(',') === 'Apples,Bananas', 'checked Bananas sinks below unchecked Apples');
+
+    // --- delete an item and undo it ---
+    itemByName('Apples').querySelector('.del').click();
+    await sleep(30);
+    ok(!itemByName('Apples'), 'Apples removed after delete');
+    ok($('#toast').classList.contains('show'), 'undo toast is shown after delete');
+    doc().getElementById('toastUndo').click();
+    await sleep(30);
+    ok(!!itemByName('Apples'), 'Apples restored after undo (delete)');
+
+    // --- reset all and confirm undo restores the prior check-state ---
+    // Bananas is currently checked; Apples unchecked.
+    ok(itemByName('Bananas').classList.contains('checked'), 'pre-reset: Bananas still checked');
+    doc().getElementById('reset').click();     // uncheck all
+    await sleep(30);
+    ok($$('.item.checked').length === 0, 'reset unchecks all items');
+    doc().getElementById('toastUndo').click(); // undo reset
+    await sleep(30);
+    ok(itemByName('Bananas').classList.contains('checked'), 'undo restores prior checked state (Bananas checked again)');
+    ok(!itemByName('Apples').classList.contains('checked'), 'undo keeps Apples unchecked as before');
+
+    // --- refresh the page and confirm everything persisted ---
+    await loadFrame(origin + '/index.html');
+    await sleep(50);
+    ok($$('.item').length === 2, 'both items persisted across reload');
+    ok(itemByName('Bananas'), 'Bananas persisted');
+    ok(itemByName('Bananas').classList.contains('checked'), 'checked state persisted across reload');
+    ok(itemByName('Bananas').querySelector('.qty').textContent === '×3', 'quantity persisted across reload');
+
+    // --- category filtering ---
+    const chips = $$('.chip');
+    ok(chips.length >= 2 && chips.some(c => /Produce/.test(c.textContent)), 'category filter chip present');
+
+  } catch (e) {
+    results.push('FAIL : threw ' + (e && e.message ? e.message : e));
+  }
+
+  const failed = results.filter(r => r.startsWith('FAIL')).length;
+  document.getElementById('log').textContent = results.join('\n') + '\n\n' + (failed ? failed + ' FAILED' : 'ALL PASS');
+  document.body.setAttribute('data-result', JSON.stringify({ failed, results }));
+  document.title = failed ? ('UITEST:FAIL:' + failed) : 'UITEST:ALLPASS';
+}
+run();
+</script>
