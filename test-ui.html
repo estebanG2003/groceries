@@ -149,23 +149,42 @@ async function run() {
     const idxProduce = groupHeads.findIndex(t => /Produce/.test(t));
     ok(idxDairy > -1 && idxProduce > -1 && idxDairy < idxProduce, 'list groups follow custom order (Dairy before Produce)');
 
-    // --- (5) custom RGB theme preset ---
+    // --- (5) custom color via HSV picker (saturation/brightness square + hue slider) ---
     doc().getElementById('settingsBtn').click();
     await sleep(40);
+    ok(!!$('#svSquare') && !!$('#hueIn'), 'picker shows a saturation/brightness square and a hue slider');
+    ok(!$('#rIn'), 'old RGB sliders are gone');
     const swBefore = $$('#swatches .swatch').length;
-    const setRange = (sel, v) => { const el = $(sel); el.value = v; el.dispatchEvent(new f.contentWindow.Event('input', { bubbles: true })); };
-    setRange('#rIn', 255); setRange('#gIn', 0); setRange('#bIn', 150);   // -> #ff0096
+    const accentVar = () => f.contentWindow.document.documentElement.style.getPropertyValue('--accent').trim().toLowerCase();
+
+    // set hue via the slider
+    const hue = $('#hueIn');
+    hue.value = 320; hue.dispatchEvent(new f.contentWindow.Event('input', { bubbles: true }));
     await sleep(20);
+    const hexAfterHue = $('#pickHex').textContent;
+    // drag in the square to a high-saturation, high-brightness point
+    const sq = $('#svSquare'); const rect = sq.getBoundingClientRect();
+    const pdown = new f.contentWindow.PointerEvent('pointerdown', {
+      bubbles: true, cancelable: true, pointerId: 1,
+      clientX: rect.left + rect.width * 0.9, clientY: rect.top + rect.height * 0.2,
+    });
+    sq.dispatchEvent(pdown);
+    sq.dispatchEvent(new f.contentWindow.PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+    await sleep(20);
+    const handleMoved = $('#svHandle').style.left !== '' && parseFloat($('#svHandle').style.left) > 50;
+    ok(handleMoved, 'dragging the square moves the handle toward high saturation');
+    ok($('#pickHex').textContent !== hexAfterHue, 'dragging the square changes the picked color');
+
+    const expected = $('#pickHex').textContent.toLowerCase();
     $('#addPreset').click();
     await sleep(40);
-    ok($$('#swatches .swatch').length === swBefore + 1, 'custom color adds a new preset swatch');
-    const accentVar = () => f.contentWindow.document.documentElement.style.getPropertyValue('--accent').trim().toLowerCase();
-    ok(accentVar() === '#ff0096', 'custom color applied to --accent (' + accentVar() + ')');
+    ok($$('#swatches .swatch').length === swBefore + 1, 'saving the picked color adds a new preset swatch');
+    ok(accentVar() === expected, 'picked color applied to --accent (' + accentVar() + ' == ' + expected + ')');
     ok(!$('#removeCustom').hidden, 'remove-custom button shows while a custom color is active');
     // persists across reload
     await loadFrame(location.origin + '/index.html');
     await sleep(50);
-    ok(accentVar() === '#ff0096', 'custom theme persists across reload');
+    ok(accentVar() === expected, 'custom theme persists across reload');
     // remove it -> reverts to green preset
     doc().getElementById('settingsBtn').click();
     await sleep(30);

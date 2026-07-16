@@ -1,6 +1,6 @@
 /* Deterministic tests for the grocery data model.
    Run: node test-model.js    (no dependencies) */
-const { createStore, sortForDisplay, createHistory, hexToRgb, rgbToHex, derivePreset } = require('./model.js');
+const { createStore, sortForDisplay, createHistory, hexToRgb, rgbToHex, derivePreset, hsvToRgb, rgbToHsv } = require('./model.js');
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {
@@ -169,6 +169,25 @@ console.log('color helpers (custom RGB theme)');
   ok(sum(p.light[1]) > sum(p.light[0]), 'light tint is lighter than the accent');
   ok(sum(p.dark[1]) < sum(p.dark[0]), 'dark tint is darker than the accent');
   ok(rgbToHex(...hexToRgb('#abcdef')) === '#abcdef', 'hex -> rgb -> hex round-trips');
+}
+
+console.log('HSV <-> RGB (color picker)');
+{
+  const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  ok(eq(hsvToRgb(0, 1, 1), [255, 0, 0]), 'hsv red -> rgb');
+  ok(eq(hsvToRgb(120, 1, 1), [0, 255, 0]), 'hsv green -> rgb');
+  ok(eq(hsvToRgb(240, 1, 1), [0, 0, 255]), 'hsv blue -> rgb');
+  ok(eq(hsvToRgb(0, 0, 1), [255, 255, 255]), 'hsv zero-sat full-val -> white');
+  ok(eq(hsvToRgb(0, 0, 0), [0, 0, 0]), 'hsv zero-val -> black');
+  const [h, s, v] = rgbToHsv(255, 0, 0);
+  ok(Math.round(h) === 0 && s === 1 && v === 1, 'rgbToHsv red -> h0 s1 v1');
+  const [h2] = rgbToHsv(0, 255, 0);
+  ok(Math.round(h2) === 120, 'rgbToHsv green -> h120');
+  // round-trip a few arbitrary colours (within rounding tolerance)
+  const rt = (r, g, b) => { const [H, S, V] = rgbToHsv(r, g, b); return hsvToRgb(H, S, V); };
+  ok(eq(rt(59, 130, 246), [59, 130, 246]), 'round-trip #3b82f6');
+  ok(eq(rt(219, 39, 119), [219, 39, 119]), 'round-trip #db2777');
+  ok(eq(rt(120, 60, 230), [120, 60, 230]), 'round-trip arbitrary purple');
 }
 
 console.log('\n' + (fail === 0 ? '✅ ALL PASS' : '❌ FAILURES') + `  (${pass} passed, ${fail} failed)`);

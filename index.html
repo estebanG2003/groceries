@@ -230,13 +230,26 @@
     .swatch.on::after { content: '✓'; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 18px; }
     .remove-custom { display: block; width: 100%; margin-top: 12px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); padding: 9px; border-radius: 10px; font-size: 13.5px; font-weight: 500; cursor: pointer; }
     .remove-custom[hidden] { display: none; }
-    .rgb { display: flex; gap: 14px; align-items: center; }
-    .rgb-preview { width: 58px; height: 58px; border-radius: 14px; border: 1px solid var(--border); flex: 0 0 auto; }
-    .rgb-sliders { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-    .rgb-row { display: flex; align-items: center; gap: 12px; }
-    .rgb-row > span:first-child { width: 12px; font-weight: 700; font-size: 13px; color: var(--text-dim); }
-    .rgb-row input[type="range"] { flex: 1 1 auto; min-width: 0; height: 24px; }
-    .rgb-row .v { width: 30px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--text-dim); }
+    /* HSV color picker: saturation/brightness square + rainbow hue slider */
+    .sv-square {
+      position: relative; width: 100%; height: 168px; border-radius: 12px; border: 1px solid var(--border);
+      touch-action: none; cursor: crosshair; overflow: hidden;
+      background-image: linear-gradient(to top, #000, rgba(0,0,0,0)), linear-gradient(to right, #fff, rgba(255,255,255,0));
+    }
+    .sv-handle {
+      position: absolute; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.4); transform: translate(-50%, -50%); pointer-events: none;
+    }
+    .hue-slider {
+      width: 100%; height: 24px; margin-top: 14px; -webkit-appearance: none; appearance: none;
+      border-radius: 999px; touch-action: none; cursor: pointer;
+      background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+    }
+    .hue-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 2px solid rgba(0,0,0,.3); box-shadow: 0 1px 3px rgba(0,0,0,.3); cursor: pointer; }
+    .hue-slider::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 2px solid rgba(0,0,0,.3); cursor: pointer; }
+    .picker-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+    .rgb-preview { width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--border); flex: 0 0 auto; }
+    .pick-hex { font-variant-numeric: tabular-nums; font-size: 15px; color: var(--text-dim); font-weight: 700; letter-spacing: .04em; }
     .add-preset-btn { width: 100%; margin-top: 14px; border: none; background: var(--accent); color: #fff; padding: 12px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
     .danger-btn { width: 100%; border: 1px solid var(--danger); background: transparent; color: var(--danger); padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
     .danger-btn:active { background: var(--danger); color: #fff; }
@@ -306,14 +319,12 @@
       </div>
 
       <div class="set-section">
-        <label>Custom color (RGB)</label>
-        <div class="rgb">
+        <label>Custom color</label>
+        <div class="sv-square" id="svSquare"><div class="sv-handle" id="svHandle"></div></div>
+        <input type="range" min="0" max="360" id="hueIn" class="hue-slider" aria-label="hue" />
+        <div class="picker-foot">
           <div class="rgb-preview" id="rgbPreview"></div>
-          <div class="rgb-sliders">
-            <div class="rgb-row"><span>R</span><input type="range" min="0" max="255" id="rIn" style="accent-color:#ef4444" /><span class="v" id="rVal">0</span></div>
-            <div class="rgb-row"><span>G</span><input type="range" min="0" max="255" id="gIn" style="accent-color:#22c55e" /><span class="v" id="gVal">0</span></div>
-            <div class="rgb-row"><span>B</span><input type="range" min="0" max="255" id="bIn" style="accent-color:#3b82f6" /><span class="v" id="bVal">0</span></div>
-          </div>
+          <div class="pick-hex" id="pickHex">#000000</div>
         </div>
         <button class="add-preset-btn" id="addPreset">Use color &amp; save as preset</button>
       </div>
@@ -336,7 +347,7 @@
   <script>
   /* View layer. Core data model lives in model.js (shared with tests). */
   const { CATEGORIES, catById, createStore, sortForDisplay, createHistory,
-          hexToRgb, rgbToHex, derivePreset } = GroceryModel;
+          hexToRgb, rgbToHex, derivePreset, hsvToRgb, rgbToHsv } = GroceryModel;
   const store = createStore(localStorage);
   const history = createHistory(localStorage);
 
@@ -633,8 +644,10 @@
 
   const removeCustomBtn = document.getElementById('removeCustom');
   const rgbPreview = document.getElementById('rgbPreview');
-  const rIn = document.getElementById('rIn'), gIn = document.getElementById('gIn'), bIn = document.getElementById('bIn');
-  const rVal = document.getElementById('rVal'), gVal = document.getElementById('gVal'), bVal = document.getElementById('bVal');
+  const svSquare = document.getElementById('svSquare');
+  const svHandle = document.getElementById('svHandle');
+  const hueIn = document.getElementById('hueIn');
+  const pickHex = document.getElementById('pickHex');
 
   function paintSettings() {
     [...appearanceEl.children].forEach(b => b.classList.toggle('on', b.dataset.v === settings.appearance));
@@ -650,25 +663,48 @@
     });
     removeCustomBtn.hidden = !String(settings.accent).startsWith('#');   // only for a custom active color
     const curHex = (presets[settings.accent] || PALETTE.green)[isDark() ? 'dark' : 'light'][0];
-    syncRgb(curHex);
+    syncPicker(curHex);
     paintCatOrder();
   }
 
-  /* RGB slider -> live preview; the button applies AND saves it as a preset swatch. */
-  const currentRgb = () => [+rIn.value, +gIn.value, +bIn.value];
-  function paintRgb() {
-    const [r, g, b] = currentRgb();
-    rVal.textContent = r; gVal.textContent = g; bVal.textContent = b;
-    rgbPreview.style.background = rgbToHex(r, g, b);
+  /* HSV picker: saturation/brightness square (drag) + rainbow hue slider.
+     Live preview; the button applies AND saves it as a preset swatch. */
+  const picker = { h: 145, s: 0.7, v: 0.6 };
+  const pickerHex = () => rgbToHex(...hsvToRgb(picker.h, picker.s, picker.v));
+  function paintPicker() {
+    svSquare.style.backgroundColor = `hsl(${picker.h}, 100%, 50%)`;   // base hue under the two gradients
+    svHandle.style.left = (picker.s * 100) + '%';
+    svHandle.style.top = ((1 - picker.v) * 100) + '%';
+    hueIn.value = picker.h;
+    const hex = pickerHex();
+    rgbPreview.style.background = hex;
+    svHandle.style.background = hex;
+    pickHex.textContent = hex.toUpperCase();
   }
-  function syncRgb(hex) {
-    const [r, g, b] = hexToRgb(hex);
-    rIn.value = r; gIn.value = g; bIn.value = b;
-    paintRgb();
+  function syncPicker(hex) {
+    const [h, s, v] = rgbToHsv(...hexToRgb(hex));
+    picker.h = h; picker.s = s; picker.v = v;
+    paintPicker();
   }
-  [rIn, gIn, bIn].forEach(el => el.addEventListener('input', paintRgb));
+  function svFromEvent(e) {
+    const rect = svSquare.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    picker.s = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    picker.v = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
+    paintPicker();
+  }
+  let svDragging = false;
+  svSquare.addEventListener('pointerdown', (e) => {
+    svDragging = true;
+    try { svSquare.setPointerCapture(e.pointerId); } catch {}
+    svFromEvent(e); e.preventDefault();
+  });
+  svSquare.addEventListener('pointermove', (e) => { if (svDragging) svFromEvent(e); });
+  svSquare.addEventListener('pointerup', () => { svDragging = false; });
+  svSquare.addEventListener('pointercancel', () => { svDragging = false; });
+  hueIn.addEventListener('input', () => { picker.h = +hueIn.value; paintPicker(); });
   document.getElementById('addPreset').onclick = () => {
-    const hex = rgbToHex(...currentRgb());
+    const hex = pickerHex();
     if (!settings.customColors.includes(hex)) settings.customColors.push(hex);
     settings.accent = hex;
     saveSettings(); applySettings(); paintSettings(); render();
