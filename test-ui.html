@@ -23,9 +23,14 @@ async function addItem(name, qty, catId) {
   const nameIn = $('#nameIn');
   nameIn.value = name;
   nameIn.dispatchEvent(new f.contentWindow.Event('input', { bubbles: true }));
-  // qty starts at 1; press + (qty-1) times
+  // qty starts at 1; tap + (qty-1) times. The stepper now uses pointer events
+  // (press-and-hold), so a "tap" = pointerdown + pointerup.
   const plus = doc().getElementById('qPlus');
-  for (let i = 1; i < qty; i++) plus.click();
+  const tap = el => {
+    el.dispatchEvent(new f.contentWindow.PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }));
+    el.dispatchEvent(new f.contentWindow.PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+  };
+  for (let i = 1; i < qty; i++) tap(plus);
   doc().getElementById('catIn').value = catId;
   doc().getElementById('addform').dispatchEvent(new f.contentWindow.Event('submit', { bubbles: true, cancelable: true }));
   await sleep(30);
@@ -192,6 +197,19 @@ async function run() {
     await sleep(30);
     ok($$('#swatches .swatch').length === swBefore, 'removing custom color drops its swatch');
     ok(accentVar() === '#16a34a', 'after removing custom, accent reverts to green');
+
+    // --- (6) press-and-hold quantity auto-repeat ---
+    doc().getElementById('closeSettings').click();
+    await sleep(30);
+    const qEl = doc().getElementById('qVal');
+    const qPlusBtn = doc().getElementById('qPlus');
+    const startQ = parseInt(qEl.textContent, 10);
+    qPlusBtn.dispatchEvent(new f.contentWindow.PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }));
+    await sleep(1200);   // hold
+    qPlusBtn.dispatchEvent(new f.contentWindow.PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
+    await sleep(20);
+    const endQ = parseInt(qEl.textContent, 10);
+    ok(endQ - startQ > 3, 'holding "+" auto-repeats the quantity (' + startQ + ' -> ' + endQ + ')');
 
   } catch (e) {
     results.push('FAIL : threw ' + (e && e.message ? e.message : e));

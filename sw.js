@@ -5,7 +5,7 @@
         you still get the last-good cached version. No manual cache-busting.
    - Static assets (icons, manifest): CACHE-FIRST (they rarely change).
    Bump CACHE whenever the asset list or strategy changes. */
-const CACHE = 'grocery-v5';
+const CACHE = 'grocery-v6';
 const ASSETS = [
   './', './index.html', './model.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/icon-180.png',
