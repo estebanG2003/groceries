@@ -139,5 +139,28 @@
     };
   }
 
-  return { CATEGORIES, catById, createStore, sortForDisplay, createHistory, KEY };
+  /* ---- Color helpers for the custom (RGB) theme presets ---- */
+  const clamp255 = n => { n = Math.round(n); return n < 0 ? 0 : n > 255 ? 255 : n; };
+  function hexToRgb(hex) {
+    const h = String(hex).replace('#', '');
+    const s = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const n = parseInt(s, 16) || 0;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(x => clamp255(x).toString(16).padStart(2, '0')).join('');
+  }
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  // Build a full preset (accent + a "dim" tint for light and dark modes) from one RGB pick.
+  // The accent itself is the chosen colour in both modes; only the soft tint differs.
+  function derivePreset(r, g, b) {
+    const accent = rgbToHex(r, g, b);
+    return {
+      light: [accent, rgbToHex(...mix([r, g, b], [255, 255, 255], 0.85))],  // toward white
+      dark:  [accent, rgbToHex(...mix([r, g, b], [15, 18, 22], 0.80))],     // toward dark bg
+    };
+  }
+
+  return { CATEGORIES, catById, createStore, sortForDisplay, createHistory,
+           hexToRgb, rgbToHex, derivePreset, KEY };
 });

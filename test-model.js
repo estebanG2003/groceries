@@ -1,6 +1,6 @@
 /* Deterministic tests for the grocery data model.
    Run: node test-model.js    (no dependencies) */
-const { createStore, sortForDisplay, createHistory } = require('./model.js');
+const { createStore, sortForDisplay, createHistory, hexToRgb, rgbToHex, derivePreset } = require('./model.js');
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {
@@ -153,6 +153,22 @@ console.log('history / autocomplete');
   ok(h.suggest('Bananas').length === 0, 'exact full match is not re-suggested');
   const h2 = createHistory(st);   // reload from same storage
   ok(h2.suggest('bre')[0].name === 'Bread', 'history persists across reload');
+}
+
+console.log('color helpers (custom RGB theme)');
+{
+  ok(rgbToHex(255, 0, 0) === '#ff0000', 'rgbToHex red');
+  ok(rgbToHex(59, 130, 246) === '#3b82f6', 'rgbToHex arbitrary');
+  ok(rgbToHex(300, -5, 128) === '#ff0080', 'rgbToHex clamps out-of-range');
+  ok(hexToRgb('#00ff00').join(',') === '0,255,0', 'hexToRgb green');
+  ok(hexToRgb('#fff').join(',') === '255,255,255', 'hexToRgb 3-digit shorthand');
+  const p = derivePreset(59, 130, 246);
+  ok(p.light[0] === '#3b82f6' && p.dark[0] === '#3b82f6', 'derivePreset keeps the chosen accent in both modes');
+  ok(/^#[0-9a-f]{6}$/.test(p.light[1]) && /^#[0-9a-f]{6}$/.test(p.dark[1]), 'derived tints are valid hex');
+  const sum = h => hexToRgb(h).reduce((a, b) => a + b, 0);
+  ok(sum(p.light[1]) > sum(p.light[0]), 'light tint is lighter than the accent');
+  ok(sum(p.dark[1]) < sum(p.dark[0]), 'dark tint is darker than the accent');
+  ok(rgbToHex(...hexToRgb('#abcdef')) === '#abcdef', 'hex -> rgb -> hex round-trips');
 }
 
 console.log('\n' + (fail === 0 ? '✅ ALL PASS' : '❌ FAILURES') + `  (${pass} passed, ${fail} failed)`);

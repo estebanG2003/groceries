@@ -228,6 +228,16 @@
     .swatch { width: 44px; height: 44px; border-radius: 999px; border: 3px solid transparent; cursor: pointer; position: relative; }
     .swatch.on { border-color: var(--text); }
     .swatch.on::after { content: '✓'; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 18px; }
+    .remove-custom { display: block; width: 100%; margin-top: 12px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); padding: 9px; border-radius: 10px; font-size: 13.5px; font-weight: 500; cursor: pointer; }
+    .remove-custom[hidden] { display: none; }
+    .rgb { display: flex; gap: 14px; align-items: center; }
+    .rgb-preview { width: 58px; height: 58px; border-radius: 14px; border: 1px solid var(--border); flex: 0 0 auto; }
+    .rgb-sliders { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .rgb-row { display: flex; align-items: center; gap: 12px; }
+    .rgb-row > span:first-child { width: 12px; font-weight: 700; font-size: 13px; color: var(--text-dim); }
+    .rgb-row input[type="range"] { flex: 1 1 auto; min-width: 0; height: 24px; }
+    .rgb-row .v { width: 30px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--text-dim); }
+    .add-preset-btn { width: 100%; margin-top: 14px; border: none; background: var(--accent); color: #fff; padding: 12px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
     .danger-btn { width: 100%; border: 1px solid var(--danger); background: transparent; color: var(--danger); padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
     .danger-btn:active { background: var(--danger); color: #fff; }
     .set-hint { font-size: 12.5px; color: var(--text-dim); margin: 8px 2px 0; line-height: 1.35; }
@@ -292,6 +302,20 @@
       <div class="set-section">
         <label>Theme color</label>
         <div class="swatches" id="swatches"></div>
+        <button class="remove-custom" id="removeCustom" hidden>Remove this custom color</button>
+      </div>
+
+      <div class="set-section">
+        <label>Custom color (RGB)</label>
+        <div class="rgb">
+          <div class="rgb-preview" id="rgbPreview"></div>
+          <div class="rgb-sliders">
+            <div class="rgb-row"><span>R</span><input type="range" min="0" max="255" id="rIn" style="accent-color:#ef4444" /><span class="v" id="rVal">0</span></div>
+            <div class="rgb-row"><span>G</span><input type="range" min="0" max="255" id="gIn" style="accent-color:#22c55e" /><span class="v" id="gVal">0</span></div>
+            <div class="rgb-row"><span>B</span><input type="range" min="0" max="255" id="bIn" style="accent-color:#3b82f6" /><span class="v" id="bVal">0</span></div>
+          </div>
+        </div>
+        <button class="add-preset-btn" id="addPreset">Use color &amp; save as preset</button>
       </div>
 
       <div class="set-section">
@@ -311,7 +335,8 @@
   <script src="model.js"></script>
   <script>
   /* View layer. Core data model lives in model.js (shared with tests). */
-  const { CATEGORIES, catById, createStore, sortForDisplay, createHistory } = GroceryModel;
+  const { CATEGORIES, catById, createStore, sortForDisplay, createHistory,
+          hexToRgb, rgbToHex, derivePreset } = GroceryModel;
   const store = createStore(localStorage);
   const history = createHistory(localStorage);
 
@@ -336,9 +361,20 @@
     orange: { light: ['#ea580c', '#ffedd5'], dark: ['#f97316', '#3a2213'] },
   };
   const SKEY = 'grocery-settings-v1';
-  let settings = { accent: 'green', appearance: 'system' };
+  let settings = { accent: 'green', appearance: 'system', customColors: [] };
   try { Object.assign(settings, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch {}
-  if (!PALETTE[settings.accent]) settings.accent = 'green';
+  if (!Array.isArray(settings.customColors)) settings.customColors = [];
+
+  // All theme presets: the built-in named ones + any custom RGB colours (keyed by hex).
+  const customPreset = hex => { const [r, g, b] = hexToRgb(hex); return derivePreset(r, g, b); };
+  function allPresets() {
+    const out = {};
+    Object.keys(PALETTE).forEach(k => out[k] = PALETTE[k]);
+    settings.customColors.forEach(hex => out[hex] = customPreset(hex));
+    return out;
+  }
+  if (!allPresets()[settings.accent]) settings.accent = 'green';
+
   const darkMq = matchMedia('(prefers-color-scheme: dark)');
   const isDark = () => settings.appearance === 'dark' || (settings.appearance === 'system' && darkMq.matches);
 
@@ -346,7 +382,8 @@
     const root = document.documentElement;
     if (settings.appearance === 'system') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', settings.appearance);
-    const [accent, dim] = PALETTE[settings.accent][isDark() ? 'dark' : 'light'];
+    const preset = allPresets()[settings.accent] || PALETTE.green;
+    const [accent, dim] = preset[isDark() ? 'dark' : 'light'];
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--accent-dim', dim);
     const meta = document.querySelector('meta[name="theme-color"]');
@@ -594,19 +631,53 @@
   const swatchesEl = document.getElementById('swatches');
   const catOrderEl = document.getElementById('catOrder');
 
+  const removeCustomBtn = document.getElementById('removeCustom');
+  const rgbPreview = document.getElementById('rgbPreview');
+  const rIn = document.getElementById('rIn'), gIn = document.getElementById('gIn'), bIn = document.getElementById('bIn');
+  const rVal = document.getElementById('rVal'), gVal = document.getElementById('gVal'), bVal = document.getElementById('bVal');
+
   function paintSettings() {
     [...appearanceEl.children].forEach(b => b.classList.toggle('on', b.dataset.v === settings.appearance));
+    const presets = allPresets();
     swatchesEl.innerHTML = '';
-    Object.keys(PALETTE).forEach(name => {
+    Object.keys(presets).forEach(key => {
       const sw = document.createElement('button');
-      sw.className = 'swatch' + (settings.accent === name ? ' on' : '');
-      sw.style.background = PALETTE[name][isDark() ? 'dark' : 'light'][0];
-      sw.setAttribute('aria-label', name);
-      sw.onclick = () => { settings.accent = name; saveSettings(); applySettings(); paintSettings(); render(); };
+      sw.className = 'swatch' + (settings.accent === key ? ' on' : '');
+      sw.style.background = presets[key][isDark() ? 'dark' : 'light'][0];
+      sw.setAttribute('aria-label', key.startsWith('#') ? 'custom ' + key : key);
+      sw.onclick = () => { settings.accent = key; saveSettings(); applySettings(); paintSettings(); render(); };
       swatchesEl.appendChild(sw);
     });
+    removeCustomBtn.hidden = !String(settings.accent).startsWith('#');   // only for a custom active color
+    const curHex = (presets[settings.accent] || PALETTE.green)[isDark() ? 'dark' : 'light'][0];
+    syncRgb(curHex);
     paintCatOrder();
   }
+
+  /* RGB slider -> live preview; the button applies AND saves it as a preset swatch. */
+  const currentRgb = () => [+rIn.value, +gIn.value, +bIn.value];
+  function paintRgb() {
+    const [r, g, b] = currentRgb();
+    rVal.textContent = r; gVal.textContent = g; bVal.textContent = b;
+    rgbPreview.style.background = rgbToHex(r, g, b);
+  }
+  function syncRgb(hex) {
+    const [r, g, b] = hexToRgb(hex);
+    rIn.value = r; gIn.value = g; bIn.value = b;
+    paintRgb();
+  }
+  [rIn, gIn, bIn].forEach(el => el.addEventListener('input', paintRgb));
+  document.getElementById('addPreset').onclick = () => {
+    const hex = rgbToHex(...currentRgb());
+    if (!settings.customColors.includes(hex)) settings.customColors.push(hex);
+    settings.accent = hex;
+    saveSettings(); applySettings(); paintSettings(); render();
+  };
+  removeCustomBtn.onclick = () => {
+    settings.customColors = settings.customColors.filter(c => c !== settings.accent);
+    settings.accent = 'green';
+    saveSettings(); applySettings(); paintSettings(); render();
+  };
 
   function paintCatOrder() {
     catOrderEl.innerHTML = '';
