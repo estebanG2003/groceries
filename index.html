@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#16a34a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Groceries" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <title>Groceries</title>
+  <style>
+    :root {
+      --bg: #f6f7f8;
+      --surface: #ffffff;
+      --surface-2: #f0f2f4;
+      --text: #14181d;
+      --text-dim: #66707a;
+      --border: #e4e8ec;
+      --accent: #16a34a;
+      --accent-dim: #dcfce7;
+      --danger: #dc2626;
+      --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+      --radius: 14px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1216;
+        --surface: #171b21;
+        --surface-2: #1e242c;
+        --text: #e8ecef;
+        --text-dim: #8a949e;
+        --border: #262d36;
+        --accent: #22c55e;
+        --accent-dim: #14311f;
+        --danger: #f87171;
+        --shadow: 0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25);
+      }
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+      min-height: 100vh;
+      overscroll-behavior-y: none;
+    }
+    .app { max-width: 640px; margin: 0 auto; padding-bottom: calc(120px + var(--safe-bottom)); }
+
+    header {
+      position: sticky; top: 0; z-index: 20;
+      background: var(--bg);
+      padding: calc(14px + var(--safe-top)) 16px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.02em; }
+    .count { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+    /* Filter chips */
+    .chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0 4px; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip {
+      flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-dim); padding: 7px 13px; border-radius: 999px; font-size: 14px;
+      font-weight: 500; cursor: pointer; white-space: nowrap; user-select: none;
+      transition: all .12s ease;
+    }
+    .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* List */
+    main { padding: 8px 12px 0; }
+    .group { margin-top: 16px; }
+    .group-head {
+      display: flex; align-items: center; gap: 7px; padding: 2px 6px 8px;
+      font-size: 13px; font-weight: 600; color: var(--text-dim); text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .group-head .g-count { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+    ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .item {
+      display: flex; align-items: center; gap: 12px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 14px;
+      box-shadow: var(--shadow); transition: opacity .15s ease, transform .15s ease;
+    }
+    .item.checked { opacity: .55; }
+    .item.checked .name { text-decoration: line-through; text-decoration-color: var(--text-dim); }
+    .box {
+      flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--border);
+      display: grid; place-items: center; cursor: pointer; transition: all .12s ease; background: var(--surface-2);
+    }
+    .box.on { background: var(--accent); border-color: var(--accent); }
+    .box svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 3.2; fill: none; opacity: 0; transition: opacity .1s; }
+    .box.on svg { opacity: 1; }
+    .item .body { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+    .name { font-size: 16px; font-weight: 500; word-break: break-word; }
+    .qty { display: inline-block; margin-left: 7px; font-size: 13px; font-weight: 600; color: var(--accent); }
+    .item.checked .qty { color: var(--text-dim); }
+    .del {
+      flex: 0 0 auto; border: none; background: none; color: var(--text-dim); padding: 6px;
+      cursor: pointer; border-radius: 8px; display: grid; place-items: center;
+    }
+    .del:active { background: var(--surface-2); color: var(--danger); }
+    .del svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+    .empty { text-align: center; color: var(--text-dim); padding: 60px 20px; }
+    .empty .big { font-size: 44px; margin-bottom: 10px; }
+
+    /* Add bar */
+    .addbar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 10px 12px calc(10px + var(--safe-bottom));
+      box-shadow: 0 -2px 12px rgba(0,0,0,.06);
+    }
+    .addbar form { display: flex; gap: 8px; align-items: center; }
+    .addbar .name-in {
+      flex: 1 1 auto; min-width: 0; border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text); border-radius: 12px; padding: 12px 14px; font-size: 16px;
+    }
+    .addbar .name-in:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .addbar select {
+      flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+      border-radius: 12px; padding: 12px 8px; font-size: 15px; max-width: 120px;
+    }
+    .qtybox { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+    .qtybox button { border: none; background: none; color: var(--text); width: 34px; height: 46px; font-size: 20px; cursor: pointer; }
+    .qtybox span { width: 22px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; }
+    .add-btn {
+      flex: 0 0 auto; border: none; background: var(--accent); color: #fff; width: 48px; height: 48px;
+      border-radius: 12px; font-size: 26px; cursor: pointer; display: grid; place-items: center; line-height: 1;
+    }
+    .add-btn:disabled { opacity: .4; }
+
+    /* Reset button */
+    .reset {
+      display: block; margin: 22px auto 4px; border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-dim); padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600;
+      cursor: pointer;
+    }
+    .reset:active { background: var(--surface-2); }
+    .reset[hidden] { display: none; }   /* author display:block otherwise overrides the hidden attr */
+
+    /* Toast */
+    .toast {
+      position: fixed; left: 50%; transform: translateX(-50%) translateY(20px);
+      bottom: calc(88px + var(--safe-bottom)); z-index: 50;
+      background: #14181d; color: #fff; padding: 12px 14px 12px 18px; border-radius: 12px;
+      display: flex; align-items: center; gap: 16px; box-shadow: 0 6px 24px rgba(0,0,0,.3);
+      font-size: 14px; opacity: 0; pointer-events: none; transition: all .2s ease; max-width: 92vw;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    .toast button { border: none; background: none; color: var(--accent); font-weight: 700; font-size: 14px; cursor: pointer; padding: 4px 6px; }
+    @media (prefers-color-scheme: dark) { .toast { background: #2a323c; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-row">
+        <h1>Groceries</h1>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="chips" id="chips"></div>
+    </header>
+
+    <main id="list"></main>
+
+    <button class="reset" id="reset" hidden>Uncheck all</button>
+  </div>
+
+  <div class="addbar">
+    <form id="addform" autocomplete="off">
+      <input class="name-in" id="nameIn" placeholder="Add item…" enterkeyhint="done" />
+      <div class="qtybox" aria-label="quantity">
+        <button type="button" id="qMinus" aria-label="decrease">−</button>
+        <span id="qVal">1</span>
+        <button type="button" id="qPlus" aria-label="increase">+</button>
+      </div>
+      <select id="catIn" aria-label="category"></select>
+      <button class="add-btn" id="addBtn" type="submit" aria-label="add">+</button>
+    </form>
+  </div>
+
+  <div class="toast" id="toast">
+    <span id="toastMsg"></span>
+    <button id="toastUndo" type="button">Undo</button>
+  </div>
+
+  <script src="model.js"></script>
+  <script>
+  /* View layer. Core data model lives in model.js (shared with tests). */
+  const { CATEGORIES, catById, createStore, sortForDisplay } = GroceryModel;
+  const store = createStore(localStorage);
+
+  /* ---------- Undo: snapshot-based, one level, 5s window ---------- */
+  const undo = {
+    snap: null, timer: null,
+    offer(message, prevSnapshot) {
+      this.snap = prevSnapshot;
+      clearTimeout(this.timer);
+      toastMsg.textContent = message;
+      toast.classList.add('show');
+      this.timer = setTimeout(() => this.dismiss(), 5000);
+    },
+    apply() {
+      if (this.snap == null) return;
+      store.restore(this.snap);
+      this.snap = null; clearTimeout(this.timer);
+      toast.classList.remove('show');
+      render();
+    },
+    dismiss() { this.snap = null; toast.classList.remove('show'); },
+  };
+
+  /* ---------- View state ---------- */
+  let activeFilter = 'all';   // 'all' or a category id
+
+  /* ---------- DOM refs ---------- */
+  const listEl = document.getElementById('list');
+  const chipsEl = document.getElementById('chips');
+  const countEl = document.getElementById('count');
+  const resetBtn = document.getElementById('reset');
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  const nameIn = document.getElementById('nameIn');
+  const catIn = document.getElementById('catIn');
+  const qVal = document.getElementById('qVal');
+  const addBtn = document.getElementById('addBtn');
+
+  /* ---------- Render ---------- */
+  const CHECK_SVG = '<svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>';
+  const TRASH_SVG = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+
+  function render() {
+    // chips
+    chipsEl.innerHTML = '';
+    const usedCats = new Set(store.items.map(i => i.category));
+    const mkChip = (id, label) => {
+      const b = document.createElement('button');
+      b.className = 'chip' + (activeFilter === id ? ' active' : '');
+      b.textContent = label;
+      b.onclick = () => { activeFilter = id; render(); };
+      return b;
+    };
+    chipsEl.appendChild(mkChip('all', 'All'));
+    CATEGORIES.filter(c => usedCats.has(c.id)).forEach(c =>
+      chipsEl.appendChild(mkChip(c.id, c.emoji + ' ' + c.label)));
+
+    // count
+    const total = store.items.length;
+    const left = store.items.filter(i => !i.checked).length;
+    countEl.textContent = total ? `${left} left · ${total} total` : '';
+    resetBtn.hidden = !store.hasChecked();
+
+    // list
+    listEl.innerHTML = '';
+    let visible = store.items;
+    if (activeFilter !== 'all') visible = visible.filter(i => i.category === activeFilter);
+
+    if (!visible.length) {
+      listEl.innerHTML = `<div class="empty"><div class="big">🛒</div>${
+        total ? 'Nothing in this category.' : 'Your list is empty.<br>Add something below.'}</div>`;
+      return;
+    }
+
+    // group by category (categories in fixed order); within a group,
+    // unchecked first, checked sink to the bottom.
+    const cats = activeFilter === 'all'
+      ? CATEGORIES.filter(c => visible.some(i => i.category === c.id))
+      : [catById(activeFilter)];
+
+    cats.forEach(cat => {
+      const inCat = sortForDisplay(visible.filter(i => i.category === cat.id));
+      if (!inCat.length) return;
+
+      const group = document.createElement('div');
+      group.className = 'group';
+      const head = document.createElement('div');
+      head.className = 'group-head';
+      const leftInCat = inCat.filter(i => !i.checked).length;
+      head.innerHTML = `<span>${cat.emoji}</span><span>${cat.label}</span>
+        <span class="g-count">${leftInCat}/${inCat.length}</span>`;
+      group.appendChild(head);
+
+      const ul = document.createElement('ul');
+      inCat.forEach(it => ul.appendChild(renderItem(it)));
+      group.appendChild(ul);
+      listEl.appendChild(group);
+    });
+  }
+
+  function renderItem(it) {
+    const li = document.createElement('li');
+    li.className = 'item' + (it.checked ? ' checked' : '');
+
+    const box = document.createElement('div');
+    box.className = 'box' + (it.checked ? ' on' : '');
+    box.innerHTML = CHECK_SVG;
+    box.setAttribute('role', 'checkbox');
+    box.setAttribute('aria-checked', it.checked);
+    box.onclick = () => { store.toggle(it.id); render(); };
+
+    const body = document.createElement('div');
+    body.className = 'body';
+    body.innerHTML = `<span class="name">${escapeHtml(it.name)}</span>${
+      it.qty && it.qty > 1 ? `<span class="qty">×${it.qty}</span>` : ''}`;
+    body.onclick = () => { store.toggle(it.id); render(); };
+
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.setAttribute('aria-label', 'delete ' + it.name);
+    del.innerHTML = TRASH_SVG;
+    del.onclick = (e) => {
+      e.stopPropagation();
+      const prev = store.snapshot();
+      store.remove(it.id);
+      render();
+      undo.offer(`Deleted "${it.name}"`, prev);
+    };
+
+    li.append(box, body, del);
+    return li;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  /* ---------- Add form ---------- */
+  let qty = 1;
+  function setQty(n) { qty = Math.max(1, Math.min(99, n)); qVal.textContent = qty; }
+  document.getElementById('qPlus').onclick = () => setQty(qty + 1);
+  document.getElementById('qMinus').onclick = () => setQty(qty - 1);
+
+  CATEGORIES.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.emoji + ' ' + c.label;
+    catIn.appendChild(o);
+  });
+  catIn.value = 'other';
+
+  nameIn.addEventListener('input', () => { addBtn.disabled = !nameIn.value.trim(); });
+  addBtn.disabled = true;
+
+  document.getElementById('addform').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = nameIn.value.trim();
+    if (!name) return;
+    // Add to the currently-filtered category if one is active, else the picker's choice.
+    const cat = activeFilter !== 'all' ? activeFilter : catIn.value;
+    store.add(name, qty, cat);
+    nameIn.value = ''; setQty(1); addBtn.disabled = true;
+    render();
+    nameIn.focus();
+  });
+
+  /* ---------- Reset (uncheck all) with undo ---------- */
+  resetBtn.onclick = () => {
+    if (!store.hasChecked()) return;
+    const prev = store.snapshot();
+    store.uncheckAll();
+    render();
+    undo.offer('Unchecked all items', prev);
+  };
+  document.getElementById('toastUndo').onclick = () => undo.apply();
+
+  /* ---------- Boot ---------- */
+  store.load();
+  render();
+
+  /* ---------- Service worker (offline + installable) ---------- */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () =>
+      navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+  </script>
+</body>
+</html>
