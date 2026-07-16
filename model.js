@@ -29,6 +29,7 @@
     { id: 'snacks',    label: 'Snacks',         emoji: '🍫' },
     { id: 'beverages', label: 'Beverages',      emoji: '🥤' },
     { id: 'household', label: 'Household',      emoji: '🧻' },
+    { id: 'personal',  label: 'Personal Care',  emoji: '🧴' },
     { id: 'other',     label: 'Other',          emoji: '🛒' },
   ];
   const catById = id => CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES.length - 1];

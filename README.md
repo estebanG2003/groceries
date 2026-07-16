@@ -8,9 +8,13 @@ A small, personal, mobile-first grocery checklist PWA. No framework, no build st
 - Check / uncheck while shopping; checked items sink to the bottom of their category
 - Items grouped by category (Produce, Dairy, Meat, …) with a filter-chip row
 - One-tap **Uncheck all** to reset the list after a shop
-- **Undo** toast after a delete or a reset (5-second window)
+- **Undo** toast after a delete, a reset, or a clear-all (5-second window)
+- **Settings sheet** (gear icon): pick a theme color (6 options) and Appearance (System / Light / Dark)
+- **Clear entire list** in settings, with undo
+- Full-width add input so you can see what you're typing; a "+ Add item" row at the end of the list jumps you to it
+- Subtle haptic tick on check (phones that support `navigator.vibrate`)
 - Installable to your phone home screen (PWA) and works offline
-- Light/dark aware, respects safe-area insets on notched phones
+- Auto-updates when online (service worker is network-first for the app shell), safe-area insets on notched phones
 
 ## Run it locally
 

@@ -18,7 +18,7 @@
       --text: #14181d;
       --text-dim: #66707a;
       --border: #e4e8ec;
-      --accent: #16a34a;
+      --accent: #16a34a;       /* owned by JS (theme picker); this is the no-JS fallback */
       --accent-dim: #dcfce7;
       --danger: #dc2626;
       --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
@@ -26,59 +26,58 @@
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
+    /* Dark neutrals — applied when the user forces dark, OR when the system is
+       dark and the user hasn't forced light. Accent vars are set by JS, not here. */
+    :root[data-theme="dark"] {
+      --bg: #0f1216; --surface: #171b21; --surface-2: #1e242c; --text: #e8ecef;
+      --text-dim: #8a949e; --border: #262d36; --danger: #f87171;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25);
+    }
     @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0f1216;
-        --surface: #171b21;
-        --surface-2: #1e242c;
-        --text: #e8ecef;
-        --text-dim: #8a949e;
-        --border: #262d36;
-        --accent: #22c55e;
-        --accent-dim: #14311f;
-        --danger: #f87171;
+      :root:not([data-theme="light"]) {
+        --bg: #0f1216; --surface: #171b21; --surface-2: #1e242c; --text: #e8ecef;
+        --text-dim: #8a949e; --border: #262d36; --danger: #f87171;
         --shadow: 0 1px 2px rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.25);
       }
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; padding: 0; }
     body {
-      background: var(--bg);
-      color: var(--text);
+      background: var(--bg); color: var(--text);
       font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
-      min-height: 100vh;
-      overscroll-behavior-y: none;
+      min-height: 100vh; overscroll-behavior-y: none;
     }
-    .app { max-width: 640px; margin: 0 auto; padding-bottom: calc(120px + var(--safe-bottom)); }
+    .app { max-width: 640px; margin: 0 auto; padding-bottom: calc(160px + var(--safe-bottom)); }
 
     header {
-      position: sticky; top: 0; z-index: 20;
-      background: var(--bg);
-      padding: calc(14px + var(--safe-top)) 16px 8px;
-      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20; background: var(--bg);
+      padding: calc(14px + var(--safe-top)) 16px 8px; border-bottom: 1px solid var(--border);
     }
     .title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.02em; }
+    .head-right { display: flex; align-items: center; gap: 10px; }
     .count { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .icon-btn {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+      width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; cursor: pointer;
+    }
+    .icon-btn:active { background: var(--surface-2); }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; }
 
-    /* Filter chips */
     .chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0 4px; scrollbar-width: none; }
     .chips::-webkit-scrollbar { display: none; }
     .chip {
       flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface);
       color: var(--text-dim); padding: 7px 13px; border-radius: 999px; font-size: 14px;
-      font-weight: 500; cursor: pointer; white-space: nowrap; user-select: none;
-      transition: all .12s ease;
+      font-weight: 500; cursor: pointer; white-space: nowrap; user-select: none; transition: all .12s ease;
     }
     .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-    /* List */
     main { padding: 8px 12px 0; }
     .group { margin-top: 16px; }
     .group-head {
       display: flex; align-items: center; gap: 7px; padding: 2px 6px 8px;
-      font-size: 13px; font-weight: 600; color: var(--text-dim); text-transform: uppercase;
-      letter-spacing: .04em;
+      font-size: 13px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em;
     }
     .group-head .g-count { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
 
@@ -86,7 +85,7 @@
     .item {
       display: flex; align-items: center; gap: 12px; background: var(--surface);
       border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 14px;
-      box-shadow: var(--shadow); transition: opacity .15s ease, transform .15s ease;
+      box-shadow: var(--shadow); transition: opacity .15s ease;
     }
     .item.checked { opacity: .55; }
     .item.checked .name { text-decoration: line-through; text-decoration-color: var(--text-dim); }
@@ -108,55 +107,92 @@
     .del:active { background: var(--surface-2); color: var(--danger); }
     .del svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; }
 
+    /* "+ Add item" affordance at the end of the list */
+    .list-add {
+      display: flex; align-items: center; gap: 8px; width: 100%; margin: 18px 0 6px;
+      border: 1.5px dashed var(--border); background: transparent; color: var(--text-dim);
+      border-radius: var(--radius); padding: 14px; font-size: 15px; font-weight: 500; cursor: pointer;
+    }
+    .list-add:active { background: var(--surface-2); }
+    .list-add span.plus { font-size: 20px; line-height: 1; }
+
     .empty { text-align: center; color: var(--text-dim); padding: 60px 20px; }
     .empty .big { font-size: 44px; margin-bottom: 10px; }
 
-    /* Add bar */
+    /* Add bar — TWO rows: full-width name input on top so you can see what you type. */
     .addbar {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-      background: var(--surface); border-top: 1px solid var(--border);
-      padding: 10px 12px calc(10px + var(--safe-bottom));
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface);
+      border-top: 1px solid var(--border); padding: 10px 12px calc(10px + var(--safe-bottom));
       box-shadow: 0 -2px 12px rgba(0,0,0,.06);
     }
-    .addbar form { display: flex; gap: 8px; align-items: center; }
-    .addbar .name-in {
-      flex: 1 1 auto; min-width: 0; border: 1px solid var(--border); background: var(--surface-2);
-      color: var(--text); border-radius: 12px; padding: 12px 14px; font-size: 16px;
+    .addbar form { display: flex; flex-direction: column; gap: 8px; }
+    .name-in {
+      width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+      border-radius: 12px; padding: 13px 14px; font-size: 16px;
     }
-    .addbar .name-in:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .name-in:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .add-row2 { display: flex; gap: 8px; align-items: stretch; }
+    .qtybox { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); flex: 0 0 auto; }
+    .qtybox button { border: none; background: none; color: var(--text); width: 40px; height: 46px; font-size: 20px; cursor: pointer; }
+    .qtybox span { width: 24px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; }
     .addbar select {
-      flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
-      border-radius: 12px; padding: 12px 8px; font-size: 15px; max-width: 120px;
+      flex: 1 1 auto; min-width: 0; border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text); border-radius: 12px; padding: 12px 10px; font-size: 15px;
     }
-    .qtybox { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
-    .qtybox button { border: none; background: none; color: var(--text); width: 34px; height: 46px; font-size: 20px; cursor: pointer; }
-    .qtybox span { width: 22px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; }
     .add-btn {
-      flex: 0 0 auto; border: none; background: var(--accent); color: #fff; width: 48px; height: 48px;
-      border-radius: 12px; font-size: 26px; cursor: pointer; display: grid; place-items: center; line-height: 1;
+      flex: 0 0 auto; border: none; background: var(--accent); color: #fff; padding: 0 22px; height: 46px;
+      border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer;
     }
     .add-btn:disabled { opacity: .4; }
 
-    /* Reset button */
     .reset {
       display: block; margin: 22px auto 4px; border: 1px solid var(--border); background: var(--surface);
-      color: var(--text-dim); padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600;
-      cursor: pointer;
+      color: var(--text-dim); padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer;
     }
     .reset:active { background: var(--surface-2); }
-    .reset[hidden] { display: none; }   /* author display:block otherwise overrides the hidden attr */
+    .reset[hidden] { display: none; }
 
     /* Toast */
     .toast {
       position: fixed; left: 50%; transform: translateX(-50%) translateY(20px);
-      bottom: calc(88px + var(--safe-bottom)); z-index: 50;
-      background: #14181d; color: #fff; padding: 12px 14px 12px 18px; border-radius: 12px;
-      display: flex; align-items: center; gap: 16px; box-shadow: 0 6px 24px rgba(0,0,0,.3);
-      font-size: 14px; opacity: 0; pointer-events: none; transition: all .2s ease; max-width: 92vw;
+      bottom: calc(150px + var(--safe-bottom)); z-index: 50; background: #14181d; color: #fff;
+      padding: 12px 14px 12px 18px; border-radius: 12px; display: flex; align-items: center; gap: 16px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.3); font-size: 14px; opacity: 0; pointer-events: none;
+      transition: all .2s ease; max-width: 92vw;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
     .toast button { border: none; background: none; color: var(--accent); font-weight: 700; font-size: 14px; cursor: pointer; padding: 4px 6px; }
-    @media (prefers-color-scheme: dark) { .toast { background: #2a323c; } }
+    :root[data-theme="dark"] .toast { background: #2a323c; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .toast { background: #2a323c; } }
+
+    /* Settings sheet */
+    .overlay {
+      position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.4);
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .overlay[hidden] { display: none; }
+    .sheet {
+      width: 100%; max-width: 640px; background: var(--bg); border-radius: 20px 20px 0 0;
+      padding: 8px 20px calc(24px + var(--safe-bottom)); max-height: 88vh; overflow-y: auto;
+      animation: slideUp .22s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: .6 } to { transform: none; opacity: 1 } }
+    .sheet-grip { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 8px auto 4px; }
+    .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 12px; }
+    .sheet-head h2 { margin: 0; font-size: 20px; }
+    .sheet-head button { border: none; background: var(--surface-2); color: var(--text); width: 34px; height: 34px; border-radius: 999px; font-size: 16px; cursor: pointer; }
+    .set-section { padding: 14px 0; border-top: 1px solid var(--border); }
+    .set-section > label { display: block; font-size: 13px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+    .segment { display: flex; background: var(--surface-2); border-radius: 12px; padding: 4px; gap: 4px; }
+    .segment button { flex: 1; border: none; background: none; color: var(--text-dim); padding: 10px; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .segment button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+    .swatches { display: flex; flex-wrap: wrap; gap: 14px; }
+    .swatch { width: 44px; height: 44px; border-radius: 999px; border: 3px solid transparent; cursor: pointer; position: relative; }
+    .swatch.on { border-color: var(--text); }
+    .swatch.on::after { content: '✓'; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 18px; }
+    .danger-btn { width: 100%; border: 1px solid var(--danger); background: transparent; color: var(--danger); padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .danger-btn:active { background: var(--danger); color: #fff; }
+    .set-hint { font-size: 12.5px; color: var(--text-dim); margin: 8px 2px 0; line-height: 1.35; }
   </style>
 </head>
 <body>
@@ -164,7 +200,12 @@
     <header>
       <div class="title-row">
         <h1>Groceries</h1>
-        <span class="count" id="count"></span>
+        <div class="head-right">
+          <span class="count" id="count"></span>
+          <button class="icon-btn" id="settingsBtn" aria-label="settings">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
       </div>
       <div class="chips" id="chips"></div>
     </header>
@@ -176,14 +217,16 @@
 
   <div class="addbar">
     <form id="addform" autocomplete="off">
-      <input class="name-in" id="nameIn" placeholder="Add item…" enterkeyhint="done" />
-      <div class="qtybox" aria-label="quantity">
-        <button type="button" id="qMinus" aria-label="decrease">−</button>
-        <span id="qVal">1</span>
-        <button type="button" id="qPlus" aria-label="increase">+</button>
+      <input class="name-in" id="nameIn" placeholder="Add an item…" enterkeyhint="done" />
+      <div class="add-row2">
+        <div class="qtybox" aria-label="quantity">
+          <button type="button" id="qMinus" aria-label="decrease">−</button>
+          <span id="qVal">1</span>
+          <button type="button" id="qPlus" aria-label="increase">+</button>
+        </div>
+        <select id="catIn" aria-label="category"></select>
+        <button class="add-btn" id="addBtn" type="submit">Add</button>
       </div>
-      <select id="catIn" aria-label="category"></select>
-      <button class="add-btn" id="addBtn" type="submit" aria-label="add">+</button>
     </form>
   </div>
 
@@ -192,36 +235,88 @@
     <button id="toastUndo" type="button">Undo</button>
   </div>
 
+  <!-- Settings sheet -->
+  <div class="overlay" id="settings" hidden>
+    <div class="sheet" role="dialog" aria-label="Settings">
+      <div class="sheet-grip"></div>
+      <div class="sheet-head"><h2>Settings</h2><button id="closeSettings" aria-label="close">✕</button></div>
+
+      <div class="set-section">
+        <label>Appearance</label>
+        <div class="segment" id="appearance">
+          <button data-v="system">System</button>
+          <button data-v="light">Light</button>
+          <button data-v="dark">Dark</button>
+        </div>
+      </div>
+
+      <div class="set-section">
+        <label>Theme color</label>
+        <div class="swatches" id="swatches"></div>
+      </div>
+
+      <div class="set-section">
+        <label>Danger zone</label>
+        <button class="danger-btn" id="clearAll">Clear entire list</button>
+        <p class="set-hint">Removes every item. You'll get an Undo for a few seconds.</p>
+      </div>
+    </div>
+  </div>
+
   <script src="model.js"></script>
   <script>
   /* View layer. Core data model lives in model.js (shared with tests). */
   const { CATEGORIES, catById, createStore, sortForDisplay } = GroceryModel;
   const store = createStore(localStorage);
 
+  /* ---------- Settings: theme color + light/dark, persisted separately ---------- */
+  const PALETTE = {
+    green:  { light: ['#16a34a', '#dcfce7'], dark: ['#22c55e', '#14311f'] },
+    blue:   { light: ['#2563eb', '#dbeafe'], dark: ['#3b82f6', '#17233f'] },
+    teal:   { light: ['#0d9488', '#ccfbf1'], dark: ['#14b8a6', '#0f302c'] },
+    purple: { light: ['#7c3aed', '#ede9fe'], dark: ['#8b5cf6', '#241a3d'] },
+    pink:   { light: ['#db2777', '#fce7f3'], dark: ['#ec4899', '#3b1d2c'] },
+    orange: { light: ['#ea580c', '#ffedd5'], dark: ['#f97316', '#3a2213'] },
+  };
+  const SKEY = 'grocery-settings-v1';
+  let settings = { accent: 'green', appearance: 'system' };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch {}
+  if (!PALETTE[settings.accent]) settings.accent = 'green';
+  const darkMq = matchMedia('(prefers-color-scheme: dark)');
+  const isDark = () => settings.appearance === 'dark' || (settings.appearance === 'system' && darkMq.matches);
+
+  function applySettings() {
+    const root = document.documentElement;
+    if (settings.appearance === 'system') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', settings.appearance);
+    const [accent, dim] = PALETTE[settings.accent][isDark() ? 'dark' : 'light'];
+    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent-dim', dim);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', isDark() ? '#0f1216' : accent);
+  }
+  function saveSettings() { localStorage.setItem(SKEY, JSON.stringify(settings)); }
+  darkMq.addEventListener('change', () => { if (settings.appearance === 'system') applySettings(); });
+  applySettings();   // apply before first paint of the list
+
   /* ---------- Undo: snapshot-based, one level, 5s window ---------- */
   const undo = {
     snap: null, timer: null,
     offer(message, prevSnapshot) {
-      this.snap = prevSnapshot;
-      clearTimeout(this.timer);
-      toastMsg.textContent = message;
-      toast.classList.add('show');
+      this.snap = prevSnapshot; clearTimeout(this.timer);
+      toastMsg.textContent = message; toast.classList.add('show');
       this.timer = setTimeout(() => this.dismiss(), 5000);
     },
     apply() {
       if (this.snap == null) return;
-      store.restore(this.snap);
-      this.snap = null; clearTimeout(this.timer);
-      toast.classList.remove('show');
-      render();
+      store.restore(this.snap); this.snap = null; clearTimeout(this.timer);
+      toast.classList.remove('show'); render();
     },
     dismiss() { this.snap = null; toast.classList.remove('show'); },
   };
 
-  /* ---------- View state ---------- */
-  let activeFilter = 'all';   // 'all' or a category id
+  let activeFilter = 'all';
 
-  /* ---------- DOM refs ---------- */
   const listEl = document.getElementById('list');
   const chipsEl = document.getElementById('chips');
   const countEl = document.getElementById('count');
@@ -233,7 +328,6 @@
   const qVal = document.getElementById('qVal');
   const addBtn = document.getElementById('addBtn');
 
-  /* ---------- Render ---------- */
   const CHECK_SVG = '<svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>';
   const TRASH_SVG = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
 
@@ -249,13 +343,11 @@
       return b;
     };
     chipsEl.appendChild(mkChip('all', 'All'));
-    CATEGORIES.filter(c => usedCats.has(c.id)).forEach(c =>
-      chipsEl.appendChild(mkChip(c.id, c.emoji + ' ' + c.label)));
+    CATEGORIES.filter(c => usedCats.has(c.id)).forEach(c => chipsEl.appendChild(mkChip(c.id, c.emoji + ' ' + c.label)));
 
     // count
     const total = store.items.length;
-    const left = store.items.filter(i => !i.checked).length;
-    countEl.textContent = total ? `${left} left · ${total} total` : '';
+    countEl.textContent = total ? `${store.countLeft()} left · ${total}` : '';
     resetBtn.hidden = !store.hasChecked();
 
     // list
@@ -266,11 +358,9 @@
     if (!visible.length) {
       listEl.innerHTML = `<div class="empty"><div class="big">🛒</div>${
         total ? 'Nothing in this category.' : 'Your list is empty.<br>Add something below.'}</div>`;
-      return;
+      if (!total) return;   // no end-of-list add row when totally empty (add bar is right there)
     }
 
-    // group by category (categories in fixed order); within a group,
-    // unchecked first, checked sink to the bottom.
     const cats = activeFilter === 'all'
       ? CATEGORIES.filter(c => visible.some(i => i.category === c.id))
       : [catById(activeFilter)];
@@ -278,40 +368,44 @@
     cats.forEach(cat => {
       const inCat = sortForDisplay(visible.filter(i => i.category === cat.id));
       if (!inCat.length) return;
-
       const group = document.createElement('div');
       group.className = 'group';
       const head = document.createElement('div');
       head.className = 'group-head';
       const leftInCat = inCat.filter(i => !i.checked).length;
-      head.innerHTML = `<span>${cat.emoji}</span><span>${cat.label}</span>
-        <span class="g-count">${leftInCat}/${inCat.length}</span>`;
+      head.innerHTML = `<span>${cat.emoji}</span><span>${cat.label}</span><span class="g-count">${leftInCat}/${inCat.length}</span>`;
       group.appendChild(head);
-
       const ul = document.createElement('ul');
       inCat.forEach(it => ul.appendChild(renderItem(it)));
       group.appendChild(ul);
       listEl.appendChild(group);
     });
+
+    // "+ Add item" affordance at the end of the list -> jumps to the input
+    if (total) {
+      const addRow = document.createElement('button');
+      addRow.className = 'list-add';
+      addRow.id = 'listAdd';
+      addRow.innerHTML = '<span class="plus">+</span><span>Add item</span>';
+      addRow.onclick = () => { nameIn.focus(); nameIn.scrollIntoView({ block: 'center' }); };
+      listEl.appendChild(addRow);
+    }
   }
 
   function renderItem(it) {
     const li = document.createElement('li');
     li.className = 'item' + (it.checked ? ' checked' : '');
-
     const box = document.createElement('div');
     box.className = 'box' + (it.checked ? ' on' : '');
     box.innerHTML = CHECK_SVG;
     box.setAttribute('role', 'checkbox');
     box.setAttribute('aria-checked', it.checked);
-    box.onclick = () => { store.toggle(it.id); render(); };
-
+    box.onclick = () => toggle(it.id);
     const body = document.createElement('div');
     body.className = 'body';
     body.innerHTML = `<span class="name">${escapeHtml(it.name)}</span>${
       it.qty && it.qty > 1 ? `<span class="qty">×${it.qty}</span>` : ''}`;
-    body.onclick = () => { store.toggle(it.id); render(); };
-
+    body.onclick = () => toggle(it.id);
     const del = document.createElement('button');
     del.className = 'del';
     del.setAttribute('aria-label', 'delete ' + it.name);
@@ -319,13 +413,17 @@
     del.onclick = (e) => {
       e.stopPropagation();
       const prev = store.snapshot();
-      store.remove(it.id);
-      render();
+      store.remove(it.id); render();
       undo.offer(`Deleted "${it.name}"`, prev);
     };
-
     li.append(box, body, del);
     return li;
+  }
+
+  function toggle(id) {
+    store.toggle(id);
+    if (navigator.vibrate) navigator.vibrate(8);   // subtle haptic on phones that support it
+    render();
   }
 
   function escapeHtml(s) {
@@ -352,32 +450,59 @@
     e.preventDefault();
     const name = nameIn.value.trim();
     if (!name) return;
-    // Add to the currently-filtered category if one is active, else the picker's choice.
     const cat = activeFilter !== 'all' ? activeFilter : catIn.value;
     store.add(name, qty, cat);
     nameIn.value = ''; setQty(1); addBtn.disabled = true;
-    render();
-    nameIn.focus();
+    render(); nameIn.focus();
   });
 
   /* ---------- Reset (uncheck all) with undo ---------- */
   resetBtn.onclick = () => {
     if (!store.hasChecked()) return;
     const prev = store.snapshot();
-    store.uncheckAll();
-    render();
+    store.uncheckAll(); render();
     undo.offer('Unchecked all items', prev);
   };
   document.getElementById('toastUndo').onclick = () => undo.apply();
+
+  /* ---------- Settings sheet wiring ---------- */
+  const settingsEl = document.getElementById('settings');
+  const appearanceEl = document.getElementById('appearance');
+  const swatchesEl = document.getElementById('swatches');
+
+  function paintSettings() {
+    [...appearanceEl.children].forEach(b => b.classList.toggle('on', b.dataset.v === settings.appearance));
+    swatchesEl.innerHTML = '';
+    Object.keys(PALETTE).forEach(name => {
+      const sw = document.createElement('button');
+      sw.className = 'swatch' + (settings.accent === name ? ' on' : '');
+      sw.style.background = PALETTE[name][isDark() ? 'dark' : 'light'][0];
+      sw.setAttribute('aria-label', name);
+      sw.onclick = () => { settings.accent = name; saveSettings(); applySettings(); paintSettings(); render(); };
+      swatchesEl.appendChild(sw);
+    });
+  }
+  appearanceEl.querySelectorAll('button').forEach(b => {
+    b.onclick = () => { settings.appearance = b.dataset.v; saveSettings(); applySettings(); paintSettings(); render(); };
+  });
+  document.getElementById('settingsBtn').onclick = () => { paintSettings(); settingsEl.hidden = false; };
+  document.getElementById('closeSettings').onclick = () => { settingsEl.hidden = true; };
+  settingsEl.onclick = (e) => { if (e.target === settingsEl) settingsEl.hidden = true; };
+  document.getElementById('clearAll').onclick = () => {
+    if (!store.items.length) { settingsEl.hidden = true; return; }
+    const prev = store.snapshot();
+    store.items = []; store.save();
+    settingsEl.hidden = true; render();
+    undo.offer('Cleared the whole list', prev);
+  };
 
   /* ---------- Boot ---------- */
   store.load();
   render();
 
-  /* ---------- Service worker (offline + installable) ---------- */
+  /* ---------- Service worker ---------- */
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () =>
-      navigator.serviceWorker.register('sw.js').catch(() => {}));
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
   </script>
 </body>

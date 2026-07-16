@@ -1,15 +1,14 @@
-/* Service worker: makes the app installable and work offline.
-   Bump CACHE when you change any cached file so clients refresh. */
-const CACHE = 'grocery-v1';
+/* Service worker.
+   Strategy:
+   - App shell (HTML + model.js): NETWORK-FIRST, fall back to cache when offline.
+     => whenever you're online you get the latest code automatically; offline
+        you still get the last-good cached version. No manual cache-busting.
+   - Static assets (icons, manifest): CACHE-FIRST (they rarely change).
+   Bump CACHE whenever the asset list or strategy changes. */
+const CACHE = 'grocery-v2';
 const ASSETS = [
-  './',
-  './index.html',
-  './model.js',
-  './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './icons/icon-180.png',
+  './', './index.html', './model.js', './manifest.webmanifest',
+  './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/icon-180.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -23,14 +22,33 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Cache-first for app shell; fall back to network, then cache.
+// Is this a request for the app shell (the page itself or its JS)?
+function isShell(url) {
+  return url.pathname.endsWith('/') || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/model.js');
+}
+
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+
+  if (isShell(url) || e.request.mode === 'navigate') {
+    // network-first: fetch fresh, update cache, fall back to cache offline
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // cache-first for everything else (icons, manifest)
   e.respondWith(
     caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
       const copy = res.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
       return res;
-    }).catch(() => caches.match('./index.html')))
+    }).catch(() => undefined))
   );
 });
