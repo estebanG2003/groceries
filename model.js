@@ -61,15 +61,31 @@
       restore(snap) { this.items = JSON.parse(snap); return this.save(); },
 
       add(name, qty, category, source = 'manual') {
+        const nm = String(name).trim();
+        const q = Math.max(1, parseInt(qty, 10) || 1);
+        const cat = category || 'other';
+        // Merge into an existing UNCHECKED item with the same name (case-insensitive)
+        // and category — adding "Milk" twice bumps qty instead of making two rows.
+        // A checked (already-bought) match is left alone; a re-add starts a fresh need.
+        const dup = this.items.find(i =>
+          !i.checked && i.category === cat && i.name.toLowerCase() === nm.toLowerCase());
+        if (dup) { dup.qty = Math.min(99, dup.qty + q); this.save(); return dup; }
         const item = {
-          id: uid(), name: String(name).trim(),
-          qty: Math.max(1, parseInt(qty, 10) || 1),
-          category: category || 'other', checked: false,
+          id: uid(), name: nm, qty: q, category: cat, checked: false,
           source, createdAt: Date.now(), seq: ++seq,
         };
         this.items.push(item);
         this.save();
         return item;
+      },
+      update(id, fields) {
+        const it = this.items.find(i => i.id === id);
+        if (!it) return null;
+        if (fields.name !== undefined) { const nm = String(fields.name).trim(); if (nm) it.name = nm; }
+        if (fields.qty !== undefined) it.qty = Math.max(1, Math.min(99, parseInt(fields.qty, 10) || 1));
+        if (fields.category !== undefined) it.category = fields.category || 'other';
+        this.save();
+        return it;
       },
       addMany(list, source = 'meal-plan') {   // future meal-plan seam
         (list || []).forEach(i => this.add(i.name, i.qty, i.category, source));
@@ -95,5 +111,33 @@
       (a.checked - b.checked) || ((a.seq || 0) - (b.seq || 0)));
   }
 
-  return { CATEGORIES, catById, createStore, sortForDisplay, KEY };
+  /* History of previously-added item names, for autocomplete. Persists
+     independently of the current list (survives deleting the item). Keyed by
+     lowercased name; remembers the last category and how often it's been added. */
+  function createHistory(storage) {
+    const HKEY = 'grocery-history-v1';
+    let map = {};
+    try { map = JSON.parse(storage.getItem(HKEY) || '{}') || {}; } catch { map = {}; }
+    return {
+      record(name, category) {
+        const nm = String(name).trim();
+        const key = nm.toLowerCase();
+        if (!key) return;
+        const e = map[key] || { name: nm, count: 0 };
+        e.name = nm; e.category = category || e.category || 'other';
+        e.count = (e.count || 0) + 1; e.last = Date.now();
+        map[key] = e;
+        storage.setItem(HKEY, JSON.stringify(map));
+      },
+      suggest(query, limit = 6) {
+        const q = String(query || '').trim().toLowerCase();
+        let arr = Object.values(map);
+        if (q) arr = arr.filter(e => e.name.toLowerCase().includes(q) && e.name.toLowerCase() !== q);
+        arr.sort((a, b) => (b.count - a.count) || ((b.last || 0) - (a.last || 0)));
+        return arr.slice(0, limit);
+      },
+    };
+  }
+
+  return { CATEGORIES, catById, createStore, sortForDisplay, createHistory, KEY };
 });

@@ -1,6 +1,6 @@
 /* Deterministic tests for the grocery data model.
    Run: node test-model.js    (no dependencies) */
-const { createStore, sortForDisplay } = require('./model.js');
+const { createStore, sortForDisplay, createHistory } = require('./model.js');
 
 let pass = 0, fail = 0;
 function ok(cond, msg) {
@@ -108,6 +108,51 @@ console.log('meal-plan seam (addMany with source)');
   ok(chicken.source === 'meal-plan', 'bulk-added items tagged source=meal-plan');
   ok(s.items.find(i => i.name === 'Manual thing').source === 'manual', 'manual items keep source=manual');
   ok(s.countLeft() === 3, 'countLeft counts unchecked');
+}
+
+console.log('merge duplicates (same name + category, unchecked)');
+{
+  const s = createStore(memStorage()).load();
+  const a = s.add('Milk', 1, 'dairy');
+  const b = s.add('Milk', 2, 'dairy');          // same -> should merge
+  ok(s.items.length === 1, 'second identical add merges into one row');
+  ok(a.id === b.id && a.qty === 3, 'merged qty is 1+2=3');
+  ok(s.add('milk', 1, 'dairy').qty === 4, 'merge is case-insensitive on name');
+  s.add('Milk', 1, 'produce');
+  ok(s.items.length === 2, 'same name in a DIFFERENT category does not merge');
+  const checked = s.add('Eggs', 1, 'dairy'); s.toggle(checked.id);
+  s.add('Eggs', 1, 'dairy');
+  ok(s.items.filter(i => i.name === 'Eggs').length === 2, 'a re-add of a CHECKED item makes a fresh row, not a merge');
+}
+
+console.log('update (edit in place)');
+{
+  const s = createStore(memStorage()).load();
+  const it = s.add('Bananna', 1, 'produce');    // typo
+  s.update(it.id, { name: 'Banana', qty: 4 });
+  const u = s.items.find(i => i.id === it.id);
+  ok(u.name === 'Banana' && u.qty === 4, 'update fixes name and qty');
+  s.update(it.id, { qty: 0 });
+  ok(s.items.find(i => i.id === it.id).qty === 1, 'update clamps qty to >=1');
+  s.update(it.id, { name: '   ' });
+  ok(s.items.find(i => i.id === it.id).name === 'Banana', 'update ignores blank name');
+  ok(s.update('nope', { name: 'x' }) === null, 'update on missing id returns null');
+}
+
+console.log('history / autocomplete');
+{
+  const st = memStorage();
+  const h = createHistory(st);
+  h.record('Bananas', 'produce'); h.record('Bananas', 'produce'); h.record('Bread', 'bakery');
+  const sug = h.suggest('ban');
+  ok(sug.length === 1 && sug[0].name === 'Bananas', 'suggest matches by substring');
+  ok(sug[0].category === 'produce', 'suggestion carries last category');
+  ok(sug[0].count === 2, 'suggestion counts repeats');
+  const top = h.suggest('');
+  ok(top[0].name === 'Bananas', 'empty query returns most-frequent first');
+  ok(h.suggest('Bananas').length === 0, 'exact full match is not re-suggested');
+  const h2 = createHistory(st);   // reload from same storage
+  ok(h2.suggest('bre')[0].name === 'Bread', 'history persists across reload');
 }
 
 console.log('\n' + (fail === 0 ? '✅ ALL PASS' : '❌ FAILURES') + `  (${pass} passed, ${fail} failed)`);

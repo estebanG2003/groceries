@@ -89,6 +89,66 @@ async function run() {
     const chips = $$('.chip');
     ok(chips.length >= 2 && chips.some(c => /Produce/.test(c.textContent)), 'category filter chip present');
 
+    // ============ NEW FEATURES ============
+    // clean slate for feature tests
+    localStorage.removeItem('grocery-app-v1');
+    localStorage.removeItem('grocery-history-v1');
+    await loadFrame(location.origin + '/index.html');
+    await sleep(50);
+
+    // --- (3) merge duplicates ---
+    await addItem('Milk', 1, 'dairy');
+    await addItem('Milk', 2, 'dairy');
+    const milks = $$('.item').filter(li => li.querySelector('.name').textContent.includes('Milk'));
+    ok(milks.length === 1, 'adding "Milk" twice makes ONE row (merge)');
+    ok(itemByName('Milk').querySelector('.qty').textContent === '×3', 'merged Milk shows ×3');
+
+    // --- (1) edit in place ---
+    itemByName('Milk').querySelector('.edit-btn').click();
+    await sleep(30);
+    const editInput = $('.edit-name');
+    ok(!!editInput && editInput.value === 'Milk', 'edit pencil opens inline editor prefilled');
+    editInput.value = 'Oat milk';
+    $('.edit-save').click();
+    await sleep(30);
+    ok(!!itemByName('Oat milk') && !itemByName('Milk'), 'edit renames the item in place');
+
+    // --- (2) autocomplete from history ---
+    // history now knows "Milk" (recorded on add) and "Oat milk"
+    const nEl = $('#nameIn');
+    nEl.dispatchEvent(new f.contentWindow.Event('focus', { bubbles: true }));
+    nEl.value = 'oat';
+    nEl.dispatchEvent(new f.contentWindow.Event('input', { bubbles: true }));
+    await sleep(30);
+    const suggs = $$('.sugg');
+    ok(suggs.length >= 1 && suggs.some(s => /Oat milk/.test(s.textContent)), 'typing "oat" suggests past item "Oat milk"');
+    // tapping a suggestion adds it immediately
+    const before = $$('.item').length;
+    suggs.find(s => /Oat milk/.test(s.textContent)).click();
+    await sleep(30);
+    // "Oat milk" already exists unchecked in dairy -> merge bumps qty, count stays same
+    ok(itemByName('Oat milk').querySelector('.qty').textContent === '×4', 'tapping suggestion adds via merge (×3 -> ×4)');
+
+    // --- (4) category order (reorder via settings) ---
+    await addItem('Apple', 1, 'produce');   // now have dairy + produce groups
+    doc().getElementById('settingsBtn').click();
+    await sleep(30);
+    const rowsBefore = $$('#catOrder .cat-row .c-label').map(x => x.textContent.trim());
+    ok(rowsBefore[0].includes('Produce'), 'default order: Produce is first in settings list');
+    // move Produce down one
+    const firstDown = $$('#catOrder .cat-row')[0].querySelectorAll('.c-move')[1];
+    firstDown.click();
+    await sleep(30);
+    const rowsAfter = $$('#catOrder .cat-row .c-label').map(x => x.textContent.trim());
+    ok(!rowsAfter[0].includes('Produce'), 'after move-down, Produce is no longer first in settings');
+    doc().getElementById('closeSettings').click();
+    await sleep(30);
+    // list group order should reflect the new category order (Dairy group before Produce group)
+    const groupHeads = $$('.group-head').map(g => g.textContent);
+    const idxDairy = groupHeads.findIndex(t => /Dairy/.test(t));
+    const idxProduce = groupHeads.findIndex(t => /Produce/.test(t));
+    ok(idxDairy > -1 && idxProduce > -1 && idxDairy < idxProduce, 'list groups follow custom order (Dairy before Produce)');
+
   } catch (e) {
     results.push('FAIL : threw ' + (e && e.message ? e.message : e));
   }

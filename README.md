@@ -5,6 +5,10 @@ A small, personal, mobile-first grocery checklist PWA. No framework, no build st
 ## Features
 
 - Add / remove items, each with an optional quantity (`×2`)
+- **Edit an item in place** (pencil icon) — fix a name or change quantity without deleting
+- **Autocomplete** from what you've added before — type a few letters, tap a suggestion to add instantly
+- **Duplicate merge** — adding the same item twice bumps its quantity instead of making two rows
+- **Custom category order** (in settings) — reorder categories to match your store's aisles
 - Check / uncheck while shopping; checked items sink to the bottom of their category
 - Items grouped by category (Produce, Dairy, Meat, …) with a filter-chip row
 - One-tap **Uncheck all** to reset the list after a shop
