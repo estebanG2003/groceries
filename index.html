@@ -46,7 +46,11 @@
       background: var(--bg); color: var(--text);
       font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
       min-height: 100vh; overscroll-behavior-y: none;
+      /* No text selection / long-press copy-paste callout — it's a checklist, not a document */
+      -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
     }
+    /* ...except real text fields, where you still need to type and select */
+    input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
     .app { max-width: 640px; margin: 0 auto; padding-bottom: calc(160px + var(--safe-bottom)); }
 
     header {
